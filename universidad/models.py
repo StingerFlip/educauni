@@ -21,6 +21,7 @@ class Titulo(models.Model):
     universidad = models.ForeignKey(Universidad, on_delete=models.CASCADE)
     area = models.ForeignKey(Area, on_delete=models.CASCADE)
     name = models.CharField(max_length=250)
+    slug = models.CharField(max_length=250, null=True, blank=True)
     
     def __str__(self):
         return f"{self.name} ({self.area.name})"
@@ -28,6 +29,8 @@ class Titulo(models.Model):
 class Asignatura(models.Model):
     titulo = models.ForeignKey(Titulo, on_delete=models.CASCADE)
     name = models.CharField(max_length=250)
+    slug = models.CharField(max_length=250, null=True, blank=True)
+    palabras_clave = models.CharField(max_length=250, null=True, blank=True) 
         
     def __str__(self):
         return f"{self.name}"

@@ -2,18 +2,23 @@ from pathlib import Path
 import csv
 
 from django.core.management.base import BaseCommand, CommandError
+from django.utils.text import slugify
 
-from universidad.models import Area, Titulo, Asignatura
+from universidad.models import Area, Universidad, Titulo, Asignatura
 
 
 class Command(BaseCommand):
     help = (
         "Importa datos desde un CSV (por defecto fixtures/unican.csv) y crea "
         "Titulos y Asignaturas.\n\n"
-        "- Titulo.name = title\n"
-        "- Asignatura.name = BacherlorsDegree\n"
+        "- Asignatura.name = title\n"
+        "- Asignatura.slug = slugify(title)\n"
+        "- Titulo.name = BacherlorsDegree\n"
+        "- Titulo.slug = slugify(BacherlorsDegree)\n"
+        "- Titulo.universidad = Universidad con id indicado (por defecto 1)\n"
         "- Titulo.area = Area con id indicado (por defecto 1)\n"
-        "- Asignatura.titulo = Titulo creado/recuperado de la misma fila"
+        "- Asignatura.titulo = Titulo creado/recuperado de la misma fila\n"
+        "- No se duplican Titulos: se compara por slug + universidad + area"
     )
 
     def add_arguments(self, parser):
@@ -22,6 +27,15 @@ class Command(BaseCommand):
             type=str,
             default="fixtures/unican.csv",
             help="Ruta al CSV de entrada (default: fixtures/unican.csv).",
+        )
+        parser.add_argument(
+            "--universidad-id",
+            type=int,
+            default=1,
+            help=(
+                "ID de la Universidad que se asignará a todos los Titulos "
+                "(default: 1)."
+            ),
         )
         parser.add_argument(
             "--area-id",
@@ -37,11 +51,17 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         csv_path = Path(options["csv_path"])
+        universidad_id = options["universidad_id"]
         area_id = options["area_id"]
         dry_run = options["dry_run"]
 
         if not csv_path.is_file():
             raise CommandError(f"No se encuentra el CSV: {csv_path}")
+
+        try:
+            universidad = Universidad.objects.get(pk=universidad_id)
+        except Universidad.DoesNotExist as exc:
+            raise CommandError(f"No existe Universidad con id={universidad_id}") from exc
 
         try:
             area = Area.objects.get(pk=area_id)
@@ -50,8 +70,10 @@ class Command(BaseCommand):
 
         self.stdout.write(
             self.style.NOTICE(
-                f"Usando CSV: {csv_path} | Area id={area.pk} ({area.name}) "
-                f"| dry_run={dry_run}"
+                f"Usando CSV: {csv_path} | "
+                f"Universidad id={universidad.pk} ({universidad.name}) | "
+                f"Area id={area.pk} ({area.name}) | "
+                f"dry_run={dry_run}"
             )
         )
 
@@ -74,30 +96,50 @@ class Command(BaseCommand):
                 )
 
             for index, row in enumerate(reader, start=1):
-                raw_title = (row.get("title") or "").strip().strip('"')
-                raw_degree = (row.get("BacherlorsDegree") or "").strip().strip('"')
+                # CSV.title → Asignatura
+                raw_asignatura = (row.get("title") or "").strip().strip('"')
+                # CSV.BacherlorsDegree → Titulo
+                raw_titulo = (row.get("BacherlorsDegree") or "").strip().strip('"')
 
-                if not raw_title and not raw_degree:
+                if not raw_asignatura and not raw_titulo:
                     continue
+
+                titulo_slug = slugify(raw_titulo) if raw_titulo else None
+                asignatura_slug = slugify(raw_asignatura) if raw_asignatura else None
 
                 if dry_run:
                     self.stdout.write(
                         f"[dry-run] Fila {index}: "
-                        f"Titulo.name='{raw_title}' | "
-                        f"Asignatura.name='{raw_degree}'"
+                        f"Titulo.name='{raw_titulo}' slug='{titulo_slug}' | "
+                        f"Asignatura.name='{raw_asignatura}' slug='{asignatura_slug}'"
                     )
                     continue
 
+                # Titulo: deduplicar por slug + universidad + area.
+                # Si ya existe un Titulo con ese slug en esa universidad/area NO se crea otro.
+                if not titulo_slug:
+                    # Si no hay texto de grado, no podemos crear título; en ese caso
+                    # no creamos título ni asignatura.
+                    continue
+
                 titulo, titulo_created = Titulo.objects.get_or_create(
-                    name=raw_title,
+                    slug=titulo_slug,
+                    universidad=universidad,
                     area=area,
+                    defaults={
+                        "name": raw_titulo,
+                    },
                 )
                 if titulo_created:
                     created_titulos += 1
 
+                # Asignatura: deduplicar por slug + titulo
                 asignatura, asignatura_created = Asignatura.objects.get_or_create(
                     titulo=titulo,
-                    name=raw_degree,
+                    slug=asignatura_slug,
+                    defaults={
+                        "name": raw_asignatura,
+                    },
                 )
                 if asignatura_created:
                     created_asignaturas += 1
@@ -112,4 +154,3 @@ class Command(BaseCommand):
                     f"Nuevas Asignaturas: {created_asignaturas}"
                 )
             )
-
