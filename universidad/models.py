@@ -35,16 +35,29 @@ class Asignatura(models.Model):
     def __str__(self):
         return f"{self.name}"
 
-class Related(models.Model):
-    asignatura = models.ForeignKey(Asignatura, on_delete=models.CASCADE, related_name='asignatura')
-    relacion = models.ForeignKey(Asignatura, on_delete=models.CASCADE, related_name='relacion')
-    value = models.DecimalField(max_digits=10, decimal_places=8, default=0.0)
+class TituloSimilaridad(models.Model):
+    """Similitud del coseno entre dos titulaciones (precalculada)."""
+    titulo_origen = models.ForeignKey(
+        Titulo,
+        on_delete=models.CASCADE,
+        related_name="similitudes_desde",
+    )
+    titulo_destino = models.ForeignKey(
+        Titulo,
+        on_delete=models.CASCADE,
+        related_name="similitudes_hacia",
+    )
+    score = models.FloatField(help_text="Similitud del coseno entre 0 y 1")
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["titulo_origen", "titulo_destino"],
+                name="unique_titulo_similaridad_par",
+            )
+        ]
+        verbose_name = "Similitud entre títulos"
+        verbose_name_plural = "Similitudes entre títulos"
 
     def __str__(self):
-        return f"{self.asignatura.name} - {self.relacion.name}"
-
-    def has_add_permission(self, request, obj=None):
-        return False
-
-    def has_delete_permission(self, request, obj=None):
-        return False
+        return f"{self.titulo_origen.name} <-> {self.titulo_destino.name} ({self.score:.3f})"

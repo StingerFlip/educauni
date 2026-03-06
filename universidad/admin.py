@@ -1,8 +1,9 @@
 from django.contrib import admin
 from django.urls import reverse
 from django.utils.html import format_html
+from django.utils.text import Truncator
 
-from .models import Titulo, Asignatura, Related, Area, Universidad
+from .models import Titulo, Asignatura, Area, Universidad, TituloSimilaridad
 
 
 @admin.register(Titulo)
@@ -30,6 +31,25 @@ class AsignaturaAdmin(admin.ModelAdmin):
         return obj.titulo.universidad
 
 
-admin.site.register(Related)
+@admin.register(TituloSimilaridad)
+class TituloSimilaridadAdmin(admin.ModelAdmin):
+    list_display = ("excerpt_origen", "excerpt_destino", "score")
+    list_filter = ("titulo_origen__area",)
+    search_fields = ("titulo_origen__name", "titulo_destino__name")
+    ordering = ("-score",)
+
+    @admin.display(description="Título origen")
+    def excerpt_origen(self, obj):
+        if obj.titulo_origen_id is None:
+            return "—"
+        return Truncator(obj.titulo_origen.name).chars(50, truncate="…")
+
+    @admin.display(description="Título destino")
+    def excerpt_destino(self, obj):
+        if obj.titulo_destino_id is None:
+            return "—"
+        return Truncator(obj.titulo_destino.name).chars(50, truncate="…")
+
+
 admin.site.register(Area)
 admin.site.register(Universidad)
