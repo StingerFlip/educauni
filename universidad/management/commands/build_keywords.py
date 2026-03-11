@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import unicodedata
 from pathlib import Path
 from typing import Iterable, List
 
@@ -49,21 +50,31 @@ ROMAN_NUMERALS: List[str] = [
 ]
 
 
+def _strip_accents(text: str) -> str:
+    """
+    Elimina los acentos de una cadena usando normalización Unicode.
+    """
+    normalized = unicodedata.normalize("NFD", text)
+    return "".join(ch for ch in normalized if unicodedata.category(ch) != "Mn")
+
+
 def build_keywords(text: str) -> str:
     """
     Dada la cadena de nombre de una asignatura, devuelve una cadena de
     palabras clave:
     - minúsculas
+    - sin acentos
     - sin signos ni símbolos
     - sin stopwords, números ni numerales romanos
     - sin duplicados, respetando el orden de aparición
-    - unidas por comas y espacio: "palabra1, palabra2, palabra3"
+    - unidas por comas (sin espacios): "palabra1,palabra2,palabra3"
     """
     if not text:
         return ""
 
     # Normalización básica
     normalized = text.lower()
+    normalized = _strip_accents(normalized)
     # Reemplazar separadores habituales por espacio
     normalized = re.sub(r"[-/]", " ", normalized)
     # Eliminar signos de puntuación y símbolos (incluido *)
