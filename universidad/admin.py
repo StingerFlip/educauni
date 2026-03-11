@@ -24,6 +24,7 @@ class TituloAdmin(admin.ModelAdmin):
 @admin.register(Asignatura)
 class AsignaturaAdmin(admin.ModelAdmin):
     list_display = ("name", "get_universidad", "titulo")
+    list_filter = ("titulo__universidad", "titulo__area")
     search_fields = ("name", "titulo__name")
 
     @admin.display(description="Universidad")
