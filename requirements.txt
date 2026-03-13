@@ -1,0 +1,10 @@
+# Django y extensión REST
+Django>=4.2,<6.1
+djangorestframework>=3.14,<4.0
+
+# Imágenes (logo de universidad)
+Pillow>=10.0
+
+# Comando URJC (peticiones HTTPS)
+requests>=2.28
+certifi>=2023.0
