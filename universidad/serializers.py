@@ -14,7 +14,7 @@ class UniversidadMiniSerializer(serializers.ModelSerializer):
 class AreaMiniSerializer(serializers.ModelSerializer):
     class Meta:
         model = Area
-        fields = ["id", "name"]
+        fields = ["id", "name", "empleabilidad"]
 
 
 class AsignaturaMiniSerializer(serializers.ModelSerializer):

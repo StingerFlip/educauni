@@ -18,6 +18,13 @@ class Universidad(models.Model):
 
 class Area(models.Model):
     name = models.CharField(max_length=250)
+    empleabilidad = models.DecimalField(
+        max_digits=4,
+        decimal_places=1,
+        null=True,
+        blank=True,
+        help_text="Porcentaje estimado de empleabilidad (0-100, admite 1 decimal).",
+    )
 
     def __str__(self):
         return f"{self.name}"        

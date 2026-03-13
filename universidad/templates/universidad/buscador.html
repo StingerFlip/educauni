@@ -148,6 +148,31 @@
             font-size: 0.95rem;
             color: #555;
         }
+        .empleabilidad-wrapper {
+            margin-top: 0.75rem;
+        }
+        .empleabilidad-bar {
+            position: relative;
+            width: 100%;
+            height: 10px;
+            border-radius: 999px;
+            background: #e2e8f0;
+            border: 2px solid #6188b3;
+            overflow: hidden;
+        }
+        .empleabilidad-bar-fill {
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 100%;
+            /* de amarillo a verde: a más porcentaje, más zona verde visible */
+            background: linear-gradient(90deg, #ecc94b, #48bb78);
+        }
+        .empleabilidad-label {
+            margin-top: 0.25rem;
+            font-size: 0.85rem;
+            color: #444;
+        }
     </style>
 </head>
 <body>
@@ -249,6 +274,14 @@
         const uniNombre = t.universidad && t.universidad.name ? t.universidad.name : "Universidad desconocida";
         const uniLogo = t.universidad && t.universidad.logo ? t.universidad.logo : "";
         const areaNombre = t.area && t.area.name ? t.area.name : "Área desconocida";
+        let empleabilidad = null;
+        if (t.area && t.area.empleabilidad !== null && t.area.empleabilidad !== undefined) {
+            // DRF envía Decimal como string, la convertimos a número
+            const parsed = parseFloat(t.area.empleabilidad);
+            if (!isNaN(parsed)) {
+                empleabilidad = parsed;
+            }
+        }
 
         let html = "";
         html += "<div class=\"detalle-header\">";
@@ -268,14 +301,27 @@
             });
             html += "</ul>";
         }
+        if (empleabilidad !== null) {
+            const pct = Math.max(0, Math.min(100, empleabilidad));
+            let emoji = "😌";
+            if (pct > 90) {
+                emoji = "😄";
+            } else if (pct <= 75) {
+                emoji = "😕";
+            }
+            html += "<div class=\"empleabilidad-wrapper\">";
+            html += "<div class=\"empleabilidad-bar\"><div class=\"empleabilidad-bar-fill\" style=\"width:" + pct + "%;\"></div></div>";
+            html += "<div class=\"empleabilidad-label\">Empleabilidad estimada del área: <strong>" + pct.toFixed(1) + "%</strong> " + emoji + "</div>";
+            html += "</div>";
+        }
 
         detalleEl.innerHTML = html;
     }
 
     function pintarSimilares(lista, tituloIdSeleccionado) {
         if (!Array.isArray(lista) || lista.length === 0) {
-            similaresEl.style.display = "none";
-            similaresEl.innerHTML = "";
+            similaresEl.style.display = "block";
+            similaresEl.innerHTML = "<h3>Titulaciones similares</h3><p>No se han encontrado titulaciones similares para este título.</p>";
             return;
         }
 
