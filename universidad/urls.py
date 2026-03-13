@@ -7,9 +7,13 @@ from .api_views import (
     TituloDetailAPIView,
     TituloSimilaresAPIView,
 )
+from .views import buscador
 
 
 urlpatterns = [
+    # Frontend sencillo con Django + JS vanilla
+    path("", buscador, name="buscador"),
+    # API REST
     path("api/titulos/", TituloListAPIView.as_view(), name="api_titulo_list"),
     path("api/titulos/<int:pk>/", TituloDetailAPIView.as_view(), name="api_titulo_detail"),
     path(

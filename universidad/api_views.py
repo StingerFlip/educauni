@@ -85,6 +85,11 @@ class TituloSimilaresAPIView(generics.GenericAPIView):
             else:
                 similar = sim.titulo_origen
 
+            if similar.universidad_id and getattr(similar.universidad, "logo", None):
+                logo_url = similar.universidad.logo.url
+            else:
+                logo_url = None
+
             data.append(
                 {
                     "titulo_id": similar.id,
@@ -92,6 +97,7 @@ class TituloSimilaresAPIView(generics.GenericAPIView):
                     "universidad_name": similar.universidad.name
                     if similar.universidad_id
                     else None,
+                    "universidad_logo": logo_url,
                     "area_name": similar.area.name if similar.area_id else None,
                     "score": sim.score,
                 }

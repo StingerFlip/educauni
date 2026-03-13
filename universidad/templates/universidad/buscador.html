@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <title>Buscador de titulaciones</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            margin: 0;
+            padding: 2rem;
+            background: #f5f5f5;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        .app-title {
+            font-size: 2.1rem;
+            font-weight: 800;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            margin: 0 0 0.25rem;
+            color: #2d3748;
+        }
+        .app-subtitle {
+            margin: 0 0 1.5rem;
+            font-size: 0.98rem;
+            color: #555;
+        }
+        #search-box {
+            position: relative;
+            margin-bottom: 1.5rem;
+        }
+        #search {
+            width: 100%;
+            padding: 0.6rem 0.8rem;
+            font-size: 1rem;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+            box-sizing: border-box;
+        }
+        #suggestions {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid #ddd;
+            border-top: none;
+            max-height: 260px;
+            overflow-y: auto;
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            z-index: 10;
+        }
+        #suggestions li {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.45rem 0.7rem;
+            cursor: pointer;
+        }
+        #suggestions li img {
+            width: 32px;
+            height: 32px;
+            object-fit: contain;
+        }
+        #suggestions li:hover {
+            background: #f0f0f0;
+        }
+        #titulo-detalle, #titulos-similares {
+            border-radius: 4px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+        }
+        #titulo-detalle {
+            background: #fdf5e6; /* pastel suave tipo crema */
+            border: 1px solid #dda22d;
+        }
+        #titulos-similares {
+            background: #ffffff;
+            border: 1px solid #dda22d;
+        }
+        #titulos-similares ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        #titulos-similares li {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 0.6rem 1rem;
+            cursor: pointer;
+            border-radius: 6px;
+            border: 1px solid #e0e0e0;
+            margin-bottom: 0.4rem;
+            background: #fafafa;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+            transition: background 0.15s ease;
+        }
+        #titulos-similares li:hover {
+            background: #d8f191;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.15);
+            transform: translateY(-1px);
+        }
+        #titulos-similares .sim-content {
+            display: flex;
+            flex-direction: column;
+            gap: 0.15rem;
+        }
+        #titulos-similares .sim-title {
+            font-weight: 600;
+        }
+        #titulos-similares .sim-uni {
+            font-size: 0.9rem;
+            color: #555;
+        }
+        #titulos-similares .sim-logo {
+            width: 80px;
+            height: 60px;
+            object-fit: contain;
+            flex-shrink: 0;
+        }
+        .detalle-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 0.5rem;
+        }
+        .detalle-logo {
+            width: 72px;
+            height: 72px;
+            object-fit: contain;
+            flex-shrink: 0;
+        }
+        .detalle-textos h2 {
+            margin: 0 0 0.25rem;
+            font-size: 1.4rem;
+        }
+        .detalle-uni {
+            margin: 0 0 0.15rem;
+        }
+        .detalle-area {
+            margin: 0;
+            font-size: 0.95rem;
+            color: #555;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1 class="app-title">educauni</h1>
+    <p class="app-subtitle">Buscador de titulaciones universitarias y grados afines</p>
+    <div id="search-box">
+        <input id="search" type="text" placeholder="Buscar titulación (ej. Psicología, Trabajo Social...)" autocomplete="off" />
+        <ul id="suggestions"></ul>
+    </div>
+
+    <div id="titulo-detalle">
+        <strong>Selecciona una titulación en el buscador para ver el detalle y las similares.</strong>
+    </div>
+
+    <div id="titulos-similares" style="display:none;"></div>
+</div>
+
+<script>
+(function () {
+    const searchInput = document.getElementById("search");
+    const suggestionsEl = document.getElementById("suggestions");
+    const detalleEl = document.getElementById("titulo-detalle");
+    const similaresEl = document.getElementById("titulos-similares");
+
+    let timer = null;
+
+    searchInput.addEventListener("input", function (e) {
+        const q = e.target.value.trim();
+        clearTimeout(timer);
+        if (!q || q.length < 3) {
+            suggestionsEl.innerHTML = "";
+            return;
+        }
+        timer = setTimeout(function () {
+            buscarTitulos(q);
+        }, 300);
+    });
+
+    function buscarTitulos(query) {
+        fetch("/api/titulos/?search=" + encodeURIComponent(query))
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                // DRF devuelve paginado: {count, next, previous, results}
+                const titulos = Array.isArray(data) ? data : (data.results || []);
+                pintarSugerencias(titulos);
+            })
+            .catch(function (err) {
+                console.error("Error al buscar títulos:", err);
+            });
+    }
+
+    function pintarSugerencias(titulos) {
+        suggestionsEl.innerHTML = "";
+        if (!Array.isArray(titulos) || titulos.length === 0) {
+            return;
+        }
+        titulos.forEach(function (t) {
+            const li = document.createElement("li");
+            const uniNombre = t.universidad && t.universidad.name ? t.universidad.name : "Universidad";
+            const uniLogo = t.universidad && t.universidad.logo ? t.universidad.logo : null;
+
+            if (uniLogo) {
+                const img = document.createElement("img");
+                img.src = uniLogo;
+                img.alt = uniNombre;
+                li.appendChild(img);
+            }
+
+            const spanTexto = document.createElement("span");
+            spanTexto.textContent = t.name + " (" + uniNombre + ")";
+            li.appendChild(spanTexto);
+            li.addEventListener("click", function () {
+                suggestionsEl.innerHTML = "";
+                searchInput.value = t.name + " (" + uniNombre + ")";
+                seleccionarTitulo(t.id);
+            });
+            suggestionsEl.appendChild(li);
+        });
+    }
+
+    function seleccionarTitulo(id) {
+        Promise.all([
+            fetch("/api/titulos/" + id + "/").then(function (r) { return r.json(); }),
+            fetch("/api/titulos/" + id + "/similares/?limit=10").then(function (r) { return r.json(); })
+        ]).then(function ([detalle, similares]) {
+            pintarDetalle(detalle);
+            pintarSimilares(similares, id);
+        }).catch(function (err) {
+            console.error("Error al cargar detalle/similares:", err);
+        });
+    }
+
+    function pintarDetalle(t) {
+        if (!t || !t.id) {
+            detalleEl.innerHTML = "<strong>No se ha encontrado información para este título.</strong>";
+            return;
+        }
+        const uniNombre = t.universidad && t.universidad.name ? t.universidad.name : "Universidad desconocida";
+        const uniLogo = t.universidad && t.universidad.logo ? t.universidad.logo : "";
+        const areaNombre = t.area && t.area.name ? t.area.name : "Área desconocida";
+
+        let html = "";
+        html += "<div class=\"detalle-header\">";
+        if (uniLogo) {
+            html += "<img class=\"detalle-logo\" src=\"" + escapar(uniLogo) + "\" alt=\"" + escapar(uniNombre) + "\">";
+        }
+        html += "<div class=\"detalle-textos\">";
+        html += "<h2>" + escapar(t.name) + "</h2>";
+        html += "<p class=\"detalle-uni\"><strong>" + escapar(uniNombre) + "</strong></p>";
+        html += "<p class=\"detalle-area\">" + escapar(areaNombre) + "</p>";
+        html += "</div></div>";
+
+        if (Array.isArray(t.asignaturas) && t.asignaturas.length > 0) {
+            html += "<p><strong>Algunas asignaturas:</strong></p><ul>";
+            t.asignaturas.slice(0, 8).forEach(function (a) {
+                html += "<li>" + escapar(a.name) + "</li>";
+            });
+            html += "</ul>";
+        }
+
+        detalleEl.innerHTML = html;
+    }
+
+    function pintarSimilares(lista, tituloIdSeleccionado) {
+        if (!Array.isArray(lista) || lista.length === 0) {
+            similaresEl.style.display = "none";
+            similaresEl.innerHTML = "";
+            return;
+        }
+
+        let html = "<h3>Titulaciones similares</h3><ul>";
+        lista.forEach(function (item) {
+            const nombre = item.titulo_name || "Título";
+            const uni = item.universidad_name || "Universidad desconocida";
+            const logo = item.universidad_logo || "";
+            html += "<li data-id=\"" + item.titulo_id + "\">";
+            if (logo) {
+                html += "<img class=\"sim-logo\" src=\"" + escapar(logo) + "\" alt=\"" + escapar(uni) + "\">";
+            } else {
+                // espacio reservado si no hay logo para mantener alineación
+                html += "<div class=\"sim-logo\"></div>";
+            }
+            html += "<div class=\"sim-content\">";
+            html += "<div class=\"sim-title\">" + escapar(nombre) + "</div>";
+            html += "<div class=\"sim-uni\">" + escapar(uni) + "</div>";
+            html += "</div></li>";
+        });
+        html += "</ul>";
+
+        similaresEl.innerHTML = html;
+        similaresEl.style.display = "block";
+
+        // Hacer clic en un similar lo convierte en el título principal
+        similaresEl.querySelectorAll("li").forEach(function (li) {
+            li.addEventListener("click", function () {
+                const id = li.getAttribute("data-id");
+                if (id && parseInt(id, 10) !== tituloIdSeleccionado) {
+                    seleccionarTitulo(id);
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                }
+            });
+        });
+    }
+
+    function escapar(texto) {
+        if (texto === null || texto === undefined) {
+            return "";
+        }
+        return String(texto)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+    }
+})();
+</script>
+</body>
+</html>
+

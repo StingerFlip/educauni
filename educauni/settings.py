@@ -56,7 +56,7 @@ ROOT_URLCONF = 'educauni.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR / 'universidad' / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -127,3 +127,7 @@ REST_FRAMEWORK = {
         "rest_framework.permissions.AllowAny",
     ],
 }
+
+# Ficheros subidos por el usuario (logos, etc.)
+MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / "media"

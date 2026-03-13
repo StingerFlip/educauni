@@ -8,7 +8,7 @@ from .models import Universidad, Area, Titulo, Asignatura
 class UniversidadMiniSerializer(serializers.ModelSerializer):
     class Meta:
         model = Universidad
-        fields = ["id", "name"]
+        fields = ["id", "name", "logo"]
 
 
 class AreaMiniSerializer(serializers.ModelSerializer):
@@ -39,16 +39,7 @@ class TituloSimilarSerializer(serializers.Serializer):
     titulo_id = serializers.IntegerField()
     titulo_name = serializers.CharField()
     universidad_name = serializers.CharField(allow_null=True)
+    universidad_logo = serializers.CharField(allow_null=True)
     area_name = serializers.CharField(allow_null=True)
     score = serializers.FloatField()
-    score_label = serializers.SerializerMethodField()
-
-    def get_score_label(self, obj):
-        # obj puede ser dict u objeto con atributo score
-        score = obj.get("score") if isinstance(obj, dict) else getattr(obj, "score", 0.0)
-        if score >= 0.7:
-            return "alta"
-        if score >= 0.4:
-            return "media"
-        return "baja"
 
