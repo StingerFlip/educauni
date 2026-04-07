@@ -14,6 +14,7 @@ class TituloAdmin(admin.ModelAdmin):
 
     @admin.display(description="Asignaturas")
     def ver_asignaturas(self, obj):
+        # Enlace directo al listado de asignaturas ya filtrado por este título.
         url = (
             reverse("admin:universidad_asignatura_changelist")
             + f"?titulo__id__exact={obj.id}"
@@ -41,12 +42,14 @@ class TituloSimilaridadAdmin(admin.ModelAdmin):
 
     @admin.display(description="Título origen")
     def excerpt_origen(self, obj):
+        # Recortamos nombres largos para que el listado sea legible.
         if obj.titulo_origen_id is None:
             return "—"
         return Truncator(obj.titulo_origen.name).chars(50, truncate="…")
 
     @admin.display(description="Título destino")
     def excerpt_destino(self, obj):
+        # Recortamos nombres largos para que el listado sea legible.
         if obj.titulo_destino_id is None:
             return "—"
         return Truncator(obj.titulo_destino.name).chars(50, truncate="…")

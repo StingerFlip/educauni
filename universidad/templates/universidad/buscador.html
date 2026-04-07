@@ -207,12 +207,14 @@
             suggestionsEl.innerHTML = "";
             return;
         }
+        // Pequeño debounce para no lanzar una petición por cada tecla (mejora fluidez y reduce carga).
         timer = setTimeout(function () {
             buscarTitulos(q);
         }, 300);
     });
 
     function buscarTitulos(query) {
+        // El backend permite filtrar por `search` y el resultado viene paginado (DRF).
         fetch("/api/titulos/?search=" + encodeURIComponent(query))
             .then(function (r) { return r.json(); })
             .then(function (data) {
@@ -255,6 +257,7 @@
     }
 
     function seleccionarTitulo(id) {
+        // Cargamos detalle y similares en paralelo para que la UI responda más rápido.
         Promise.all([
             fetch("/api/titulos/" + id + "/").then(function (r) { return r.json(); }),
             fetch("/api/titulos/" + id + "/similares/?limit=10").then(function (r) { return r.json(); })
@@ -284,6 +287,8 @@
         }
 
         let html = "";
+        // Generamos HTML a mano porque es una demo sencilla (sin framework).
+        // Importante: escapamos los textos para evitar problemas si vienen caracteres raros.
         html += "<div class=\"detalle-header\">";
         if (uniLogo) {
             html += "<img class=\"detalle-logo\" src=\"" + escapar(uniLogo) + "\" alt=\"" + escapar(uniNombre) + "\">";
@@ -363,6 +368,7 @@
         if (texto === null || texto === undefined) {
             return "";
         }
+        // Escapado básico para evitar que el contenido de la API se interprete como HTML.
         return String(texto)
             .replace(/&/g, "&amp;")
             .replace(/</g, "&lt;")

@@ -11,9 +11,9 @@ from .views import buscador
 
 
 urlpatterns = [
-    # Frontend sencillo con Django + JS vanilla
+    # Frontend: una única página que consume la API con fetch (JS vanilla).
     path("", buscador, name="buscador"),
-    # API REST
+    # API REST: endpoints que usa el buscador (autocompletado, detalle y similares).
     path("api/titulos/", TituloListAPIView.as_view(), name="api_titulo_list"),
     path("api/titulos/<int:pk>/", TituloDetailAPIView.as_view(), name="api_titulo_detail"),
     path(
