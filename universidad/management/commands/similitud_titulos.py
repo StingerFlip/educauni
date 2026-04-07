@@ -1,6 +1,11 @@
 """
-Precalcula la similitud del coseno entre titulaciones por grupo de áreas.
-Usa palabras_clave de las asignaturas (split por coma) como vectores de conteo.
+Este comando precalcula la similitud entre titulaciones usando similitud del coseno.
+
+Se ejecuta offline (por comando) para no calcular nada "pesado" en cada petición web.
+El resultado se guarda en TituloSimilaridad y luego la API solo consulta esa tabla.
+
+La similitud se calcula a partir de `palabras_clave` de las asignaturas (split por coma),
+tratándolas como un vector de conteos por término.
 """
 from __future__ import annotations
 
@@ -14,7 +19,8 @@ from django.db import transaction
 from universidad.models import Asignatura, Titulo, TituloSimilaridad
 
 
-# Grupos de áreas afines: cada Titulo solo se compara con Titulos de su grupo.
+# Comparamos titulaciones solo dentro de grupos de áreas afines.
+# Esto evita sugerencias "absurdas" y reduce el coste de cálculo (menos pares a comparar).
 AREA_GROUPS: List[Tuple[str, List[int]]] = [
     ("STEM", [2, 3, 5]),  # Ciencias, Ciencias de la Salud, Ingeniería y Arquitectura
     (
@@ -29,6 +35,8 @@ AREA_GROUPS: List[Tuple[str, List[int]]] = [
 def get_keywords_for_titulo(titulo: Titulo) -> Counter:
     """Devuelve un Counter de términos (palabras_clave split por coma) de las asignaturas del título."""
     counter: Counter = Counter()
+    # Solo usamos asignaturas con palabras_clave; si un título no tiene keywords,
+    # su vector queda vacío y la similitud acabará siendo 0.
     asignaturas = Asignatura.objects.filter(titulo=titulo).exclude(
         palabras_clave__isnull=True
     ).exclude(palabras_clave="")
@@ -59,6 +67,8 @@ def counter_to_vector(counter: Counter, vocabulary: List[str]) -> List[float]:
 
 def cosine_similarity(a: List[float], b: List[float]) -> float:
     """Similitud del coseno: (a·b) / (||a|| * ||b||). Devuelve 0 si alguna norma es 0."""
+    # El coseno mide "orientación" (términos compartidos) más que tamaño.
+    # Así, dos títulos pueden parecerse aunque uno tenga más asignaturas que otro.
     dot = sum(x * y for x, y in zip(a, b))
     norm_a = math.sqrt(sum(x * x for x in a))
     norm_b = math.sqrt(sum(y * y for y in b))
@@ -137,6 +147,7 @@ class Command(BaseCommand):
                 for j in range(i + 1, len(titulos)):
                     t_a, t_b = titulos[i], titulos[j]
                     score = cosine_similarity(vectors[t_a.id], vectors[t_b.id])
+                    # Filtramos similitudes bajas para no llenar la BD con ruido.
                     if score < min_score:
                         continue
                     if dry_run:
@@ -155,6 +166,7 @@ class Command(BaseCommand):
 
             if not dry_run and to_create:
                 with transaction.atomic():
+                    # Guardamos en bloque por rendimiento (evita miles de inserts individuales).
                     TituloSimilaridad.objects.bulk_create(to_create)
                 total_created += len(to_create)
                 self.stdout.write(

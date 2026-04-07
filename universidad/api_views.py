@@ -13,12 +13,18 @@ from .serializers import TituloSerializer, TituloSimilarSerializer
 
 
 class TituloListAPIView(generics.ListAPIView):
+    """
+    Endpoint de listado para el buscador (autocompletado).
+    Permite filtrar por texto y, si hace falta, por universidad y área.
+    """
     serializer_class = TituloSerializer
 
     def get_queryset(self):
         qs = Titulo.objects.select_related("universidad", "area")
         request: Request = self.request
-
+        # Query params pensados para el frontend:
+        # - search: texto que escribe el usuario
+        # - universidad_id / area_id: filtros opcionales
         search = request.query_params.get("search")
         universidad_id = request.query_params.get("universidad_id")
         area_id = request.query_params.get("area_id")
@@ -34,6 +40,11 @@ class TituloListAPIView(generics.ListAPIView):
 
 
 class TituloDetailAPIView(generics.RetrieveAPIView):
+    """
+    Devuelve el detalle de una titulación con su universidad, área y asignaturas.
+    Es la llamada que se hace al seleccionar un resultado del buscador.
+    """
+    # select_related/prefetch_related para evitar consultas extra al devolver relaciones.
     queryset = Titulo.objects.select_related("universidad", "area").prefetch_related(
         "asignatura_set"
     )
@@ -41,12 +52,16 @@ class TituloDetailAPIView(generics.RetrieveAPIView):
 
 
 class TituloSimilaresAPIView(generics.GenericAPIView):
+    """
+    Endpoint de recomendación.
+    Nota: aquí no calculamos similitud; solo consultamos la tabla precalculada TituloSimilaridad.
+    """
     # DRF exige definir queryset o get_queryset aunque usemos una consulta ad hoc
     queryset = TituloSimilaridad.objects.all()
     serializer_class = TituloSimilarSerializer
 
     def get(self, request: Request, pk: int) -> Response:
-        # Verificar que el título origen existe
+        # Validación rápida: si el título no existe, devolvemos 404 controlado.
         try:
             Titulo.objects.get(pk=pk)
         except Titulo.DoesNotExist:
@@ -54,7 +69,7 @@ class TituloSimilaresAPIView(generics.GenericAPIView):
                 {"detail": "Título no encontrado."},
                 status=404,
             )
-
+        # `limit` evita devolver una lista enorme; si viene mal, usamos 10.
         limit_param = request.query_params.get("limit")
         try:
             limit = int(limit_param) if limit_param is not None else 10
@@ -75,7 +90,8 @@ class TituloSimilaresAPIView(generics.GenericAPIView):
             )
             .order_by("-score")[:limit]
         )
-
+        # Construimos un payload plano (solo los campos que pinta el frontend).
+        # Esto simplifica el cliente y evita mandar más datos de los necesarios.
         data: List[dict] = []
         for sim in similitudes:
             # Si el título origen de la fila es el pk, el similar es el destino;

@@ -10,7 +10,7 @@ from django.db import models
 
 from universidad.models import Asignatura
 
-
+# Palabras frecuentes (stopwords) que no aportan valor para comparar asignaturas.
 STOPWORDS: List[str] = [
     "de",
     "del",
@@ -36,6 +36,7 @@ STOPWORDS: List[str] = [
     "o",
 ]
 
+# Algunos planes usan I, II, III...; los quitamos para que no afecten a la similitud.
 ROMAN_NUMERALS: List[str] = [
     "i",
     "ii",
@@ -54,6 +55,7 @@ def _strip_accents(text: str) -> str:
     """
     Elimina los acentos de una cadena usando normalización Unicode.
     """
+    # Así "ámbito" y "ambito" se tratan como el mismo término.
     normalized = unicodedata.normalize("NFD", text)
     return "".join(ch for ch in normalized if unicodedata.category(ch) != "Mn")
 
@@ -69,6 +71,8 @@ def build_keywords(text: str) -> str:
     - sin duplicados, respetando el orden de aparición
     - unidas por comas (sin espacios): "palabra1,palabra2,palabra3"
     """
+    # Este formato (palabras separadas por coma) se eligió porque luego en similitud_titulos
+    # hacemos split por coma de forma directa y es fácil de inspeccionar en la base de datos.
     if not text:
         return ""
 
@@ -154,7 +158,8 @@ class Command(BaseCommand):
         limit: int | None = options["limit"]
         dry_run: bool = options["dry_run"]
 
-        # Quitar asteriscos del nombre en todas las asignaturas que lo tengan
+        # Algunas fuentes marcan asignaturas con "*" (p.ej. notas u optativas).
+        # Lo limpiamos antes de generar keywords para no ensuciar el resultado.
         con_asterisco = Asignatura.objects.filter(name__contains="*")
         n_asterisco = con_asterisco.count()
         if n_asterisco:
@@ -176,6 +181,7 @@ class Command(BaseCommand):
                 )
 
         qs = Asignatura.objects.all()
+        # Opción útil en la práctica: si ya has calculado keywords, puedes recalcular solo las vacías.
         if only_empty:
             qs = qs.filter(models.Q(palabras_clave__isnull=True) | models.Q(palabras_clave=""))  # type: ignore[name-defined]
 
@@ -221,7 +227,7 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS("No hay asignaturas a actualizar."))
             return
 
-        # Guardar en bloques para eficiencia
+        # Guardamos en bloques para no hacer miles de `.save()` y mantener buen rendimiento.
         from django.db import transaction
 
         batch_size = 500
